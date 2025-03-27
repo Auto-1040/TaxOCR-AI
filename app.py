@@ -1,9 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
 from app.exchange_rate_service import get_irs_exchange_rate_israel
+from app.form_fill_service import fill_pdf
 from app.ocr_service import process_ocr_and_ai
 from app.s3_service import fetch_s3_file
+from app.config import S3_BUCKET_NAME, EMPTY_FORM_S3_KEY
 
 app = Flask(__name__)
 CORS(app)
@@ -49,6 +51,32 @@ def exchange_rate():
         return jsonify({"year": year, "exchange_rate": rate})
     else:
         return jsonify({"error": "Exchange rate not found"}), 404
+
+
+@app.route("/form-1040", methods=["POST"])
+def fill_pdf_endpoint():
+    try:
+        json_data = request.get_json()
+        if not json_data:
+            return jsonify({"error": "Invalid JSON"}), 400
+
+        form_key = EMPTY_FORM_S3_KEY
+        bucket_name = S3_BUCKET_NAME
+        # Fetch PDF from S3
+        pdf_stream = fetch_s3_file(bucket_name, form_key)
+        if pdf_stream is None:
+            return {"error": "Failed to fetch PDF from S3"}, 500
+        output_stream = fill_pdf(pdf_stream, json_data)
+
+        # Return filled PDF as response
+        return send_file(
+            output_stream,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name="filled_form.pdf",
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":

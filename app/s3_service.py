@@ -4,7 +4,7 @@ import boto3
 import os
 
 
-def fetch_s3_file(bucket_name,file_key):
+def fetch_s3_file(bucket_name, file_key):
     """Fetches a file from S3 and returns it as an in-memory BytesIO object."""
     try:
         # Create a session using your access keys
