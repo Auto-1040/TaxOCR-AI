@@ -4,12 +4,8 @@ from PIL import Image
 import io
 import google.generativeai as genai
 import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-gemini_api_key = os.getenv('GEMINI_API_KEY')
-my_model = "models/gemini-1.5-flash"
+import json
+import requests
 
 # Set Tesseract OCR path
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -26,6 +22,7 @@ Your response MUST FOLLOW THESE STRICT RULES:
 
 The JSON structure you MUST use is:
 {
+    "taxYear": number,
     "158/172": number,
     "218/219": number,
     "248/249": number,
@@ -54,28 +51,59 @@ def extract_text_from_pdf(pdf_bytes):
 
 
 def generate_text_from_gemini(prompt):
-    """Generate structured JSON output using Gemini AI"""
+    """Generate structured JSON output using Gemini AI via HTTP request."""
     try:
-        genai.configure(api_key=gemini_api_key)
-        model = genai.GenerativeModel(my_model)
+        gemini_api_key = os.getenv('GEMINI_API_KEY', "AIzaSyB1fHyw8ej_jeMl0hwpi9P65ugQUpyESYw")
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_api_key}"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": prompt}]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.0,
+            }
+        }
 
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                temperature=0.0,
-                response_mime_type="application/json"
-            ),
-        )
-        return response.text
+        response = requests.post(url, headers=headers, json=payload)
+        if response.status_code != 200:
+            print(f"Error response: {response.text}")
+        response.raise_for_status()  # Raise an error for bad responses (4xx, 5xx)
 
-    except Exception as e:
+        response_json = response.json()
+        return response_json
+
+    except requests.exceptions.RequestException as e:
         print(f"Error generating text: {e}")
         return None
 
 
 def process_ocr_and_ai(pdf_bytes):
-    """Extracts text using OCR and sends it to Gemini."""
+    """Extracts text using OCR and sends it to Gemini, returning JSON with custom field names."""
     ocr_text = extract_text_from_pdf(pdf_bytes)
     full_prompt = COMBINED_PROMPT + ocr_text
     json_response = generate_text_from_gemini(full_prompt)
-    return json_response
+    print("3", json_response)
+    # Attempt to parse the response as JSON
+    try:
+        original_data = json.loads(json_response)  # Parse the JSON string
+
+        # Create a new dictionary with different field names
+        custom_json_response = {
+            "taxYear": original_data.get("taxYear", None),
+            "field158_172": original_data.get("158/172", None),
+            "field218_219": original_data.get("218/219", None),
+            "field248_249": original_data.get("248/249", None),
+            "field36": original_data.get("36", None)
+        }
+
+        return custom_json_response  # Return the new JSON object with custom field names
+    except json.JSONDecodeError:
+        print("Error: Response is not valid JSON")
+        return None  # Return None if JSON parsing fails
+
+
+print(generate_text_from_gemini(COMBINED_PROMPT))
