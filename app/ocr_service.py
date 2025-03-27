@@ -2,10 +2,10 @@ import fitz
 import pytesseract
 from PIL import Image
 import io
-import google.generativeai as genai
 import os
 import json
 import requests
+import re
 
 # Set Tesseract OCR path
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -53,7 +53,7 @@ def extract_text_from_pdf(pdf_bytes):
 def generate_text_from_gemini(prompt):
     """Generate structured JSON output using Gemini AI via HTTP request."""
     try:
-        gemini_api_key = os.getenv('GEMINI_API_KEY', "AIzaSyB1fHyw8ej_jeMl0hwpi9P65ugQUpyESYw")
+        gemini_api_key = os.getenv('GEMINI_API_KEY')
         url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_api_key}"
         headers = {"Content-Type": "application/json"}
         payload = {
@@ -69,12 +69,24 @@ def generate_text_from_gemini(prompt):
         }
 
         response = requests.post(url, headers=headers, json=payload)
-        if response.status_code != 200:
-            print(f"Error response: {response.text}")
         response.raise_for_status()  # Raise an error for bad responses (4xx, 5xx)
-
         response_json = response.json()
-        return response_json
+
+        # Extract JSON from response using regex to find text between {}
+        try:
+            raw_text = response_json['candidates'][0]['content']['parts'][0]['text']
+            print(raw_text)
+            json_text_match = re.search(r'(\{.*\})', raw_text.strip(), re.DOTALL)  # Match content between {}
+
+            if json_text_match:
+                json_text = json_text_match.group(0)  # Extract the matched JSON text
+                return json_text  # Return only the extracted JSON
+            else:
+                print("No JSON structure found in the response.")
+                return None
+        except (KeyError, IndexError, json.JSONDecodeError, re.error) as e:
+            print(f"Error extracting JSON: {e}")
+            return None
 
     except requests.exceptions.RequestException as e:
         print(f"Error generating text: {e}")
@@ -106,4 +118,3 @@ def process_ocr_and_ai(pdf_bytes):
         return None  # Return None if JSON parsing fails
 
 
-print(generate_text_from_gemini(COMBINED_PROMPT))
