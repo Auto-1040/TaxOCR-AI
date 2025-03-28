@@ -1,3 +1,4 @@
+from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
@@ -42,11 +43,11 @@ def get_irs_exchange_rate_israel(year):
     # Check if the requested year is present in the table headers
     if str(year) not in headers:
         print(f"Year {year} not found in table headers.")
-        return None
+        year = int(datetime.now().year)-1
 
     # Get the index of the column corresponding to the requested year
     year_index = headers.index(str(year))
-
+    print("index", year_index)
     # Iterate through each row in the table
     for row in tables[0].find_all("tr"):
         # Extract all columns (cells) in the current row
@@ -71,5 +72,3 @@ def get_irs_exchange_rate_israel(year):
     # Log a message if no exchange rate is found for the requested year
     print(f"Exchange rate for {year} not found.")
     return None  # Return None if no exchange rate is found
-
-
