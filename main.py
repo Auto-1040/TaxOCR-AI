@@ -3,7 +3,7 @@ from flask_cors import CORS
 import os
 from app.exchange_rate_service import get_irs_exchange_rate_israel
 from app.form_fill_service import fill_pdf
-from app.ocr_service import process_ocr_and_ai
+from app.ocr_service import process_ocr_and_ai,get_status
 from app.s3_service import fetch_s3_file
 from app.config import S3_BUCKET_NAME, EMPTY_FORM_S3_KEY
 
@@ -81,11 +81,11 @@ def fill_pdf_endpoint():
 
 @app.route("/", methods=["GET"])
 def root():
-    return jsonify({"status": "OK"})
+    return get_status()
 
 
 port = int(os.environ.get("PORT", 5000))
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=port)
 

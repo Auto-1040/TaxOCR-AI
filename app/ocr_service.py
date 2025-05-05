@@ -8,6 +8,7 @@ import requests
 import re
 import platform
 
+from flask import jsonify
 
 # Set Tesseract OCR path
 if platform.system() == "Windows":
@@ -35,6 +36,10 @@ The JSON structure you MUST use is:
 
 Here is the OCR text:
 """
+
+
+def get_status():
+    return jsonify({"status": "OK"})
 
 
 def extract_text_from_pdf(pdf_bytes):
