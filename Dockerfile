@@ -1,5 +1,5 @@
 # Use the official Python image as a base
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 # Install Tesseract and dependencies
 RUN apt-get update && apt-get install -y \
