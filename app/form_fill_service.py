@@ -15,7 +15,6 @@ def rewrite_pdf(input_path, output_path):
 
 
 def fill_pdf(pdf_stream, json_data):
-    """Modify and list all form field names in a PDF."""
     # Open the PDF document
     doc = fitz.open("pdf", pdf_stream.read())
 

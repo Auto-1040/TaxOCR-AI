@@ -6,9 +6,13 @@ import os
 import json
 import requests
 import re
+import platform
+
 
 # Set Tesseract OCR path
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+if platform.system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
 
 COMBINED_PROMPT = """
 As an AI assistant specializing in data extraction from scanned documents, 
