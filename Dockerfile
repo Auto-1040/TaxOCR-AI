@@ -24,4 +24,4 @@ ENV FLASK_APP=main.py
 ENV FLASK_RUN_HOST=0.0.0.0
 
 # Run the application
-CMD ["flask", "run", "--host=0.0.0.0", "--port=${PORT}"]
+CMD ["python", "main.py"]

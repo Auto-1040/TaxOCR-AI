@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-
+import os
 from app.exchange_rate_service import get_irs_exchange_rate_israel
 from app.form_fill_service import fill_pdf
 from app.ocr_service import process_ocr_and_ai
@@ -79,6 +79,8 @@ def fill_pdf_endpoint():
         return jsonify({"error": str(e)}), 500
 
 
+port = int(os.environ.get("PORT", 5000))
+
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=port)
 
