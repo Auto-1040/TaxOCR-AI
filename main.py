@@ -3,35 +3,66 @@ from flask_cors import CORS
 import os
 from app.exchange_rate_service import get_irs_exchange_rate_israel
 from app.form_fill_service import fill_pdf
-from app.ocr_service import process_ocr_and_ai,get_status
+from app.ocr_service import process_ocr_and_ai
 from app.s3_service import fetch_s3_file
 from app.config import S3_BUCKET_NAME, EMPTY_FORM_S3_KEY
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
 
 
-@app.route("/payslip-data", methods=["POST"])
-def extract_payslip_data_from_s3():
-    """Receives an S3 URL of a payslip PDF, extracts relevant financial data using OCR and AI,
-     and returns structured JSON."""
+@app.route("/process-payslip", methods=["POST"])
+def process_payslip():
+    """
+       Endpoint to process a payslip PDF from S3, extract data using OCR and AI,
+       and return the relevant payslip fields along with the IRS exchange rate.
+
+       Expects a JSON body with:
+       - "bucket_name": Name of the S3 bucket.
+       - "file_key": Key (path) of the PDF file in the bucket.
+       - "year" (optional): The tax year for exchange rate. If not provided,
+         the most recent available year's rate will be used.
+
+       Returns a JSON response with:
+       - "payslip_data": Extracted information from the PDF.
+       - "exchange_rate": IRS exchange rate for the given or latest year.
+    """
     data = request.json
     bucket_name = data.get("bucket_name")
     file_key = data.get("file_key")
+    year = data.get("year")
 
-    if not bucket_name or not file_key:
-        return jsonify({"error": "No file URL provided"}), 400
+    result = {}
 
-    pdf_bytes = fetch_s3_file(bucket_name, file_key)
-    if not pdf_bytes:
-        return jsonify({"error": "Failed to fetch file"}), 500
+    # Process payslip
+    if bucket_name and file_key:
+        pdf_bytes = fetch_s3_file(bucket_name, file_key)
+        if not pdf_bytes:
+            return jsonify({"error": "Failed to fetch file from S3"}), 500
+        try:
+            payslip_data = process_ocr_and_ai(pdf_bytes)
+            result["payslip_data"] = payslip_data
+        except Exception as e:
+            return jsonify({"error": f"OCR/AI error: {str(e)}"}), 500
+    else:
+        result["payslip_data"] = None
 
+    # Get exchange rate
     try:
-        json_result = process_ocr_and_ai(pdf_bytes)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        if year:
+            year = int(year)
+        else:
+            year = int(datetime.now().year) - 1
+        rate = get_irs_exchange_rate_israel(year)
+        if rate is not None:
+            result["exchange_rate"] = {"year": year, "rate": rate}
+        else:
+            result["exchange_rate"] = {"error": "Exchange rate not found"}
+    except ValueError:
+        result["exchange_rate"] = {"error": "Invalid year parameter"}
 
-    return json_result
+    return jsonify(result)
 
 
 @app.route("/exchange-rate-israel", methods=["GET"])
@@ -81,7 +112,7 @@ def fill_pdf_endpoint():
 
 @app.route("/", methods=["GET"])
 def root():
-    return get_status()
+    return "ok"
 
 
 port = int(os.environ.get("PORT", 5000))

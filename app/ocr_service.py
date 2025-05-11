@@ -38,10 +38,6 @@ Here is the OCR text:
 """
 
 
-def get_status():
-    return jsonify({"status": "OK"})
-
-
 def extract_text_from_pdf(pdf_bytes):
     """Convert PDF pages to images and perform OCR directly from bytes."""
     text = ""
